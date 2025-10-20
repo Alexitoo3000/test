@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario Tipo Test Autocorregible</title>
+    <!-- Incluye Tailwind CSS para estilos modernos y responsivos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Fuente global y estilos de fondo */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Color de fondo suave */
+        }
+        /* Estilos personalizados para la tarjeta del cuestionario */
+        .quiz-container {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 0 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        /* Estilo para las opciones seleccionables */
+        .option-label {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .option-label:hover {
+            background-color: #e0f2fe; /* Light blue on hover */
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 flex flex-col items-center min-h-screen">
+
+    <!-- Contenedor Principal del Cuestionario -->
+    <div id="app" class="quiz-container bg-white w-full max-w-2xl p-6 sm:p-8 rounded-xl">
+        
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-blue-800 tracking-tight">
+                Cuestionarios Interactivos
+            </h1>
+            <p class="text-gray-600 mt-2">
+                Selecciona un tema para empezar.
+            </p>
+        </header>
+
+        <!-- Sección de Puntuación Guardada (Se muestra solo cuando un quiz está activo) -->
+        <div id="progress-area" class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg mb-6 hidden">
+            <p class="text-blue-700 font-medium">
+                Tu última puntuación guardada para <span id="current-quiz-title-progress" class="font-bold">[Cuestionario]</span>: <span id="last-score" class="font-bold">0</span> respuestas correctas.
+            </p>
+            <button onclick="resetQuiz()" class="text-sm text-red-600 hover:text-red-800 mt-1 font-semibold transition-colors">
+                Reiniciar Cuestionario
+            </button>
+        </div>
+
+        <!-- ---------------------------------------------------- -->
+        <!-- PANTALLA 1: SELECCIÓN DE CUESTIONARIO -->
+        <!-- ---------------------------------------------------- -->
+        <div id="quiz-selection-screen">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Elige un Tema</h2>
+            <div id="quiz-list" class="space-y-4">
+                <!-- Los botones de selección de quiz se inyectarán aquí por JavaScript -->
+            </div>
+        </div>
+
+        <!-- ---------------------------------------------------- -->
+        <!-- PANTALLA 2: JUEGO DEL CUESTIONARIO (Inicialmente oculta) -->
+        <!-- ---------------------------------------------------- -->
+        <div id="quiz-game-screen" class="hidden">
+            <h2 id="current-quiz-title" class="text-2xl font-bold text-gray-800 mb-6"></h2>
+            
+            <!-- Área de Preguntas (Se llena con JavaScript) -->
+            <form id="quiz-form" class="space-y-6">
+                <!-- Las preguntas se inyectarán aquí -->
+            </form>
+
+            <!-- Área de Botón y Resultados -->
+            <div class="mt-8">
+                <button id="submit-button" onclick="checkQuiz()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition duration-300 ease-in-out shadow-lg transform hover:scale-[1.01]">
+                    Corregir y Ver Resultados
+                </button>
+                
+                <!-- Contenedor de Resultados (Inicialmente oculto) -->
+                <div id="results-area" class="mt-6 p-5 rounded-lg border-2 border-green-500 bg-green-50 hidden">
+                    <h2 class="text-2xl font-bold text-green-800 mb-3">Resultados</h2>
+                    <p id="score-text" class="text-xl text-green-700 font-semibold"></p>
+                    <button onclick="resetQuiz()" class="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">
+                        Volver a intentar
+                    </button>
+                </div>
+                
+                <!-- Contenedor de Mensajes (Para errores o feedback) -->
+                <div id="message-box" class="mt-4 p-3 bg-red-100 text-red-700 border border-red-400 rounded-lg hidden"></div>
+                
+                <!-- Botón de navegación -->
+                <button onclick="navigateToSelection()" class="w-full mt-4 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 rounded-lg transition duration-300 ease-in-out shadow-md">
+                    Volver a la Selección de Cuestionarios
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+// 1. BASE DE DATOS DE CUESTIONARIOS
+        const quizDatabase = {
+    'Mitosis': {
+        title: "Biología: Mitosis",
+        questions: [
+            {
+                question: "¿En qué fase de la mitosis la cromatina comienza a condensarse?",
+                options: ["Metafase", "Profase", "Anafase", "Telofase"],
+                answer: "Profase"
+            },
+            {
+                question: "¿Qué estructura desaparece al inicio de la profase?",
+                options: ["Citoplasma", "Nucléolo", "Cromatina", "Membrana celular"],
+                answer: "Nucléolo"
+            },
+            {
+                question: "¿Qué se forma a partir de los centriolos durante la profase?",
+                options: ["Cilios", "Huso mitótico", "Cloroplastos", "Aparato de Golgi"],
+                answer: "Huso mitótico"
+            },
+            {
+                question: "¿Qué sucede con la membrana nuclear durante la prometafase?",
+                options: ["Se duplica", "Se descompone", "Se espesa", "Se fusiona con el citoplasma"],
+                answer: "Se descompone"
+            },
+            {
+                question: "¿Cómo se llaman las estructuras a las que se unen los microtúbulos del huso en los cromosomas?",
+                options: ["Centrómeros", "Cilios", "Vacuolas", "Centrosomas"],
+                answer: "Centrómeros"
+            },
+            {
+                question: "¿En qué fase los cromosomas se alinean en el ecuador de la célula?",
+                options: ["Metafase", "Profase", "Anafase", "Telofase"],
+                answer: "Metafase"
+            },
+            {
+                question: "¿Cómo se llama el plano donde los cromosomas se alinean durante la metafase?",
+                options: ["Placa celular", "Placa metafásica", "Anillo contráctil", "Centrómero"],
+                answer: "Placa metafásica"
+            },
+            {
+                question: "¿Qué ocurre durante la anafase?",
+                options: ["Los cromosomas se condensan", "Las cromátidas se separan", "Desaparece el nucléolo", "Se forma el huso"],
+                answer: "Las cromátidas se separan"
+            },
+            {
+                question: "¿Qué estructura permite el movimiento de las cromátidas hacia polos opuestos?",
+                options: ["Microtúbulos del huso", "Centrosomas", "Cilios", "Cromosomas"],
+                answer: "Microtúbulos del huso"
+            },
+            {
+                question: "¿Qué sucede con los cromosomas durante la telofase?",
+                options: ["Se condensan más", "Se descondensan y vuelven a ser cromatina", "Se destruyen", "Se replican"],
+                answer: "Se descondensan y vuelven a ser cromatina"
+            },
+            {
+                question: "¿Qué estructura reaparece en la telofase?",
+                options: ["Membrana nuclear", "Centrosoma", "Cilio", "Huso mitótico"],
+                answer: "Membrana nuclear"
+            },
+            {
+                question: "¿Cómo se llama el proceso que divide el citoplasma tras la mitosis?",
+                options: ["Cariocinesis", "Citocinesis", "Duplicación", "Apoptosis"],
+                answer: "Citocinesis"
+            },
+            {
+                question: "¿Qué se forma en las células animales durante la citocinesis?",
+                options: ["Placa celular", "Anillo contráctil de actina", "Huso acromático", "Cilios"],
+                answer: "Anillo contráctil de actina"
+            },
+            {
+                question: "¿Qué se forma en las células vegetales durante la citocinesis?",
+                options: ["Anillo de actina", "Fragmoplasto o placa celular", "Microtúbulos", "Cilios"],
+                answer: "Fragmoplasto o placa celular"
+            },
+            {
+                question: "¿Cuántas células hijas se obtienen tras la mitosis?",
+                options: ["Una", "Dos", "Tres", "Cuatro"],
+                answer: "Dos"
+            },
+            {
+                question: "¿Qué tipo de células resultan de la mitosis?",
+                options: ["Haploides distintas", "Diploides idénticas", "Diploides distintas", "Haploides iguales"],
+                answer: "Diploides idénticas"
+            },
+            {
+                question: "¿Cómo se denomina el proceso de división del núcleo durante la mitosis?",
+                options: ["Citocinesis", "Cariocinesis", "Meiosis", "Apoptosis"],
+                answer: "Cariocinesis"
+            },
+            {
+                question: "¿En qué fase desaparece completamente el huso mitótico?",
+                options: ["Anafase", "Telofase", "Metafase", "Profase"],
+                answer: "Telofase"
+            },
+            {
+                question: "¿Qué fase de la mitosis marca la separación de las cromátidas hermanas?",
+                options: ["Anafase", "Profase", "Metafase", "Telofase"],
+                answer: "Anafase"
+            },
+            {
+                question: "¿Qué nombre recibe el ciclo completo desde que una célula nace hasta que se divide?",
+                options: ["Meiosis", "Ciclo celular", "Mitosis", "Cariocinesis"],
+                answer: "Ciclo celular"
+            }
+        ]
+    }
+    ,'Meiosis': {
+        title: "Biología: Meiosis",
+        questions: [
+            {
+                question: "¿Cuántas divisiones celulares ocurren durante la meiosis?",
+                options: ["Una", "Dos", "Tres", "Cuatro"],
+                answer: "Dos"
+            },
+            {
+                question: "¿Cuántas células hijas se forman al final de la meiosis?",
+                options: ["Una", "Dos", "Tres", "Cuatro"],
+                answer: "Cuatro"
+            },
+            {
+                question: "¿Qué tipo de células se obtienen tras la meiosis?",
+                options: ["Diploides", "Haploides", "Tetraploides", "Triploides"],
+                answer: "Haploides"
+            },
+            {
+                question: "¿Cuál es la función principal de la meiosis?",
+                options: ["Crecimiento del organismo", "Formación de gametos", "Reparación celular", "Producción de energía"],
+                answer: "Formación de gametos"
+            },
+            {
+                question: "¿Cómo se denomina la célula resultante de la unión de dos gametos?",
+                options: ["Cigoto", "Cromátida", "Centriolo", "Huso acromático"],
+                answer: "Cigoto"
+            },
+            {
+                question: "¿Qué ocurre con la cantidad de material genético durante la meiosis?",
+                options: ["Se duplica", "Se reduce a la mitad", "Permanece igual", "Se destruye"],
+                answer: "Se reduce a la mitad"
+            },
+            {
+                question: "¿Qué nombre recibe el proceso que intercambia fragmentos de ADN entre cromosomas homólogos?",
+                options: ["Recombinación genética", "Mutación", "Transcripción", "Duplicación"],
+                answer: "Recombinación genética"
+            },
+            {
+                question: "¿En qué fase ocurre el sobrecruzamiento o crossing-over?",
+                options: ["Profase I", "Metafase II", "Anafase I", "Telofase II"],
+                answer: "Profase I"
+            },
+            {
+                question: "¿En qué fase los pares de cromosomas homólogos se separan hacia polos opuestos?",
+                options: ["Anafase I", "Anafase II", "Metafase I", "Telofase I"],
+                answer: "Anafase I"
+            },
+            {
+                question: "¿En qué fase las cromátidas hermanas se separan?",
+                options: ["Anafase II", "Profase I", "Metafase I", "Telofase I"],
+                answer: "Anafase II"
+            },
+            {
+                question: "¿Qué se forma al final de la Meiosis I?",
+                options: ["Dos células haploides", "Dos células diploides", "Cuatro células haploides", "Una célula diploide"],
+                answer: "Dos células haploides"
+            },
+            {
+                question: "¿Qué se forma al final de la Meiosis II?",
+                options: ["Dos células haploides", "Cuatro células haploides", "Cuatro células diploides", "Una célula haploide"],
+                answer: "Cuatro células haploides"
+            },
+            {
+                question: "¿Qué diferencia principal existe entre la mitosis y la meiosis?",
+                options: ["La meiosis tiene dos divisiones y produce células haploides", "La mitosis produce gametos", "La meiosis no divide el núcleo", "La mitosis ocurre solo en células sexuales"],
+                answer: "La meiosis tiene dos divisiones y produce células haploides"
+            },
+            {
+                question: "¿Qué nombre recibe la primera división de la meiosis?",
+                options: ["División reductora", "División ecuacional", "División somática", "División mitótica"],
+                answer: "División reductora"
+            },
+            {
+                question: "¿Qué nombre recibe la segunda división de la meiosis?",
+                options: ["División reductora", "División ecuacional", "División genética", "División celular"],
+                answer: "División ecuacional"
+            },
+            {
+                question: "¿Qué tipo de células experimentan la meiosis?",
+                options: ["Células somáticas", "Células germinales", "Células nerviosas", "Células musculares"],
+                answer: "Células germinales"
+            },
+            {
+                question: "¿Por qué la meiosis genera variabilidad genética?",
+                options: ["Por la replicación del ADN", "Por el sobrecruzamiento y la distribución aleatoria de cromosomas", "Por la citocinesis", "Por la formación de husos mitóticos"],
+                answer: "Por el sobrecruzamiento y la distribución aleatoria de cromosomas"
+            },
+            {
+                question: "¿Qué estructura forma el huso acromático durante la meiosis?",
+                options: ["Centriolos", "Nucléolo", "Cloroplasto", "Lisosomas"],
+                answer: "Centriolos"
+            },
+            {
+                question: "¿Qué fase de la meiosis se parece más a la mitosis?",
+                options: ["Meiosis I", "Meiosis II", "Profase I", "Telofase I"],
+                answer: "Meiosis II"
+            },
+            {
+                question: "¿Qué sucede si una célula no realiza correctamente la meiosis?",
+                options: ["Se generan células con un número incorrecto de cromosomas", "No puede dividirse nunca más", "Se convierte en una célula vegetal", "Se transforma en mitosis"],
+                answer: "Se generan células con un número incorrecto de cromosomas"
+            }
+        ]
+    }
+    ,'OrganelosCelulares': {
+        title: "Biología: Orgánulos de las células eucariotas y procariotas",
+        questions: [
+            {
+                question: "¿Qué orgánulo se encarga de la síntesis de proteínas?",
+                options: ["Mitocondria", "Ribosoma", "Lisosoma", "Núcleo"],
+                answer: "Ribosoma"
+            },
+            {
+                question: "¿Dónde se encuentra el ADN en las células procariotas?",
+                options: ["En el núcleo", "En el citoplasma", "En los ribosomas", "En la mitocondria"],
+                answer: "En el citoplasma"
+            },
+            {
+                question: "¿Qué estructura protege a las bacterias y les da forma?",
+                options: ["Cápsula", "Pared celular", "Citoplasma", "Huso acromático"],
+                answer: "Pared celular"
+            },
+            {
+                question: "¿Qué orgánulo se encarga de producir energía en las células eucariotas?",
+                options: ["Mitocondria", "Ribosoma", "Lisosoma", "Cloroplasto"],
+                answer: "Mitocondria"
+            },
+            {
+                question: "¿Qué orgánulo realiza la fotosíntesis en las células vegetales?",
+                options: ["Cloroplasto", "Mitocondria", "Ribosoma", "Aparato de Golgi"],
+                answer: "Cloroplasto"
+            },
+            {
+                question: "¿Qué orgánulo contiene enzimas digestivas para degradar sustancias?",
+                options: ["Lisosoma", "Vacuola", "Ribosoma", "Retículo endoplasmático"],
+                answer: "Lisosoma"
+            },
+            {
+                question: "¿Cuál es la función principal de la membrana plasmática?",
+                options: ["Sintetizar proteínas", "Controlar el intercambio de sustancias", "Almacenar energía", "Formar el núcleo"],
+                answer: "Controlar el intercambio de sustancias"
+            },
+            {
+                question: "¿Qué orgánulo almacena agua y nutrientes en las células vegetales?",
+                options: ["Vacuola", "Cloroplasto", "Lisosoma", "Centríolo"],
+                answer: "Vacuola"
+            },
+            {
+                question: "¿Qué orgánulo procesa y empaqueta proteínas para su secreción?",
+                options: ["Aparato de Golgi", "Ribosoma", "Lisosoma", "Mitocondria"],
+                answer: "Aparato de Golgi"
+            },
+            {
+                question: "¿Qué tipo de retículo endoplasmático sintetiza proteínas?",
+                options: ["Rugoso", "Liso", "Interno", "Externo"],
+                answer: "Rugoso"
+            },
+            {
+                question: "¿Qué tipo de retículo endoplasmático produce lípidos?",
+                options: ["Liso", "Rugoso", "Nuclear", "Externo"],
+                answer: "Liso"
+            },
+            {
+                question: "¿Qué orgánulo se encarga de mantener la forma de la célula y su movimiento interno?",
+                options: ["Citoesqueleto", "Centríolo", "Mitocondria", "Ribosoma"],
+                answer: "Citoesqueleto"
+            },
+            {
+                question: "¿Qué estructuras forman los cilios y flagelos?",
+                options: ["Filamentos del citoesqueleto", "Microvellosidades", "Lisosomas", "Retículos endoplasmáticos"],
+                answer: "Filamentos del citoesqueleto"
+            },
+            {
+                question: "¿Qué orgánulo regula todas las funciones celulares?",
+                options: ["Núcleo", "Mitocondria", "Citoplasma", "Aparato de Golgi"],
+                answer: "Núcleo"
+            },
+            {
+                question: "¿Qué estructura separa el núcleo del citoplasma?",
+                options: ["Membrana nuclear", "Citoplasma", "Pared celular", "Ribosoma"],
+                answer: "Membrana nuclear"
+            },
+            {
+                question: "¿Qué contiene el núcleo en su interior?",
+                options: ["ADN", "ARN", "Proteínas", "Enzimas digestivas"],
+                answer: "ADN"
+            },
+            {
+                question: "¿Cómo se llama la doble capa de lípidos que rodea a la célula?",
+                options: ["Membrana plasmática", "Citoesqueleto", "Pared celular", "Citoplasma"],
+                answer: "Membrana plasmática"
+            },
+            {
+                question: "¿Qué diferencia principal existe entre células procariotas y eucariotas?",
+                options: ["Las eucariotas tienen núcleo", "Las procariotas tienen mitocondrias", "Las eucariotas no tienen ADN", "Las procariotas tienen cloroplastos"],
+                answer: "Las eucariotas tienen núcleo"
+            },
+            {
+                question: "¿Qué tipo de orgánulos no tienen membrana?",
+                options: ["Ribosomas", "Mitocondrias", "Cloroplastos", "Lisosomas"],
+                answer: "Ribosomas"
+            },
+            {
+                question: "¿Dónde se fabrican las proteínas destinadas al exterior de la célula?",
+                options: ["RER (retículo endoplasmático rugoso)", "REL (retículo endoplasmático liso)", "Mitocondria", "Lisosoma"],
+                answer: "RER (retículo endoplasmático rugoso)"
+            },
+            {
+                question: "¿Qué función cumple el REL (retículo endoplasmático liso)?",
+                options: ["Sintetiza lípidos", "Sintetiza proteínas", "Produce energía", "Degrada desechos"],
+                answer: "Sintetiza lípidos"
+            },
+            {
+                question: "¿Qué parte del núcleo fabrica los ribosomas?",
+                options: ["Nucléolo", "Cromatina", "Nucleoplasma", "Centrosoma"],
+                answer: "Nucléolo"
+            },
+            {
+                question: "¿Qué forma tiene el ADN cuando la célula no se está dividiendo?",
+                options: ["Cromatina", "Cromosomas", "Centriolos", "Cilios"],
+                answer: "Cromatina"
+            },
+            {
+                question: "¿Qué estructura está ausente en las células animales pero presente en las vegetales?",
+                options: ["Pared celular", "Centriolos", "Lisosomas", "Flagelos"],
+                answer: "Pared celular"
+            },
+            {
+                question: "¿Qué pigmento se encuentra en los cloroplastos?",
+                options: ["Clorofila", "Hemoglobina", "Melanina", "Caroteno"],
+                answer: "Clorofila"
+            },
+            {
+                question: "¿Qué orgánulo contiene su propio ADN además del núcleo?",
+                options: ["Mitocondria", "Ribosoma", "Lisosoma", "Aparato de Golgi"],
+                answer: "Mitocondria"
+            },
+            {
+                question: "¿Qué nombre recibe la parte líquida del interior celular?",
+                options: ["Citoplasma", "Citoesqueleto", "Nucleoplasma", "Endoplasma"],
+                answer: "Citoplasma"
+            },
+            {
+                question: "¿Qué orgánulo celular interviene en la digestión de partículas extrañas?",
+                options: ["Lisosoma", "Ribosoma", "Aparato de Golgi", "Citoesqueleto"],
+                answer: "Lisosoma"
+            },
+            {
+                question: "¿Qué estructura celular está presente solo en bacterias patógenas?",
+                options: ["Cápsula", "Pared celular", "Citoplasma", "Flagelo"],
+                answer: "Cápsula"
+            },
+            {
+                question: "¿Cómo se llama la extensión que permite el movimiento de algunas bacterias?",
+                options: ["Flagelo", "Cilio", "Pseudópodo", "Vacuola"],
+                answer: "Flagelo"
+            },
+            {
+                question: "¿Qué orgánulo se asocia con la producción y secreción de enzimas digestivas?",
+                options: ["Aparato de Golgi", "Cloroplasto", "Mitocondria", "Núcleo"],
+                answer: "Aparato de Golgi"
+            },
+            {
+                question: "¿Qué orgánulos son responsables de la respiración celular?",
+                options: ["Mitocondrias", "Ribosomas", "Lisosomas", "Cloroplastos"],
+                answer: "Mitocondrias"
+            },
+            {
+                question: "¿Qué orgánulo forma vesículas que transportan proteínas?",
+                options: ["Aparato de Golgi", "REL", "Lisosoma", "Centriolo"],
+                answer: "Aparato de Golgi"
+            },
+            {
+                question: "¿Qué orgánulos producen energía en las células vegetales y animales?",
+                options: ["Mitocondrias", "Ribosomas", "Cloroplastos", "Vacuolas"],
+                answer: "Mitocondrias"
+            },
+            {
+                question: "¿Qué estructura está compuesta por actina y mantiene la forma de la célula?",
+                options: ["Citoesqueleto", "Lisosoma", "Mitocondria", "Núcleo"],
+                answer: "Citoesqueleto"
+            },
+            {
+                question: "¿Qué parte de la célula controla la entrada y salida de sustancias?",
+                options: ["Membrana plasmática", "Citoplasma", "Pared celular", "Núcleo"],
+                answer: "Membrana plasmática"
+            },
+            {
+                question: "¿Qué orgánulo vegetal contiene tilacoides?",
+                options: ["Cloroplasto", "Mitocondria", "Vacuola", "Ribosoma"],
+                answer: "Cloroplasto"
+            },
+            {
+                question: "¿Qué estructura almacena sustancias en las células animales?",
+                options: ["Vesículas", "Cloroplastos", "Lisosomas", "Ribosomas"],
+                answer: "Vesículas"
+            },
+            {
+                question: "¿Qué orgánulo participa en la eliminación de desechos celulares?",
+                options: ["Lisosomas", "Ribosomas", "Centriolos", "REL"],
+                answer: "Lisosomas"
+            },
+            {
+                question: "¿Qué orgánulos son exclusivos de las células animales?",
+                options: ["Centríolos", "Cloroplastos", "Vacuolas grandes", "Pared celular"],
+                answer: "Centríolos"
+            },
+            {
+                question: "¿Qué orgánulos son exclusivos de las células vegetales?",
+                options: ["Cloroplastos y pared celular", "Lisosomas y centriolos", "Ribosomas y REL", "Cilios y flagelos"],
+                answer: "Cloroplastos y pared celular"
+            },
+            {
+                question: "¿Qué función cumple la cápsula bacteriana?",
+                options: ["Protección y adhesión", "Síntesis de proteínas", "Fotosíntesis", "Respiración"],
+                answer: "Protección y adhesión"
+            },
+            {
+                question: "¿Qué estructura bacteriana permite la adhesión al sustrato?",
+                options: ["Fimbrias", "Flagelos", "Pared celular", "Cilios"],
+                answer: "Fimbrias"
+            },
+            {
+                question: "¿Qué orgánulo controla la síntesis de proteínas?",
+                options: ["Ribosomas", "Núcleo", "Mitocondrias", "REL"],
+                answer: "Núcleo"
+            },
+            {
+                question: "¿Qué orgánulo celular aparece tanto en procariotas como en eucariotas?",
+                options: ["Ribosomas", "Mitocondrias", "Núcleo", "Cloroplastos"],
+                answer: "Ribosomas"
+            },
+            {
+                question: "¿Cómo se llama el material genético de una célula procariota?",
+                options: ["Cromosoma circular", "Cromosomas lineales", "Cromatina", "Centrómero"],
+                answer: "Cromosoma circular"
+            },
+            {
+                question: "¿Qué orgánulo transforma la energía solar en energía química?",
+                options: ["Cloroplasto", "Mitocondria", "Ribosoma", "REL"],
+                answer: "Cloroplasto"
+            },
+            {
+                question: "¿Qué tipo de célula tiene una pared compuesta de celulosa?",
+                options: ["Célula vegetal", "Célula animal", "Célula bacteriana", "Célula fúngica"],
+                answer: "Célula vegetal"
+            },
+            {
+                question: "¿Qué tipo de célula tiene una pared compuesta de peptidoglucano?",
+                options: ["Célula bacteriana", "Célula vegetal", "Célula animal", "Célula de hongos"],
+                answer: "Célula bacteriana"
+            },
+            {
+                question: "¿Qué orgánulo se encarga del almacenamiento temporal de sustancias?",
+                options: ["Vesículas", "Núcleo", "Ribosomas", "REL"],
+                answer: "Vesículas"
+            },
+            {
+                question: "¿Dónde se encuentran los centriolos?",
+                options: ["En las células animales", "En las células vegetales", "En las bacterias", "En los cloroplastos"],
+                answer: "En las células animales"
+            },
+            {
+                question: "¿Qué orgánulo produce ATP mediante respiración celular?",
+                options: ["Mitocondria", "Cloroplasto", "Ribosoma", "Golgi"],
+                answer: "Mitocondria"
+            }
+        ]
+    }
+};
+
+
+        // Estado y Utilidades
+        let currentQuizId = null;
+        const getStorageKey = (quizId) => `quizApp_lastScore_${quizId}`; // Clave de almacenamiento dinámica
+        
+        // Referencias a los elementos del DOM
+        const selectionScreen = document.getElementById('quiz-selection-screen');
+        const gameScreen = document.getElementById('quiz-game-screen');
+        const quizList = document.getElementById('quiz-list');
+        const currentQuizTitle = document.getElementById('current-quiz-title');
+        const currentQuizTitleProgress = document.getElementById('current-quiz-title-progress');
+        const quizForm = document.getElementById('quiz-form');
+        const resultsArea = document.getElementById('results-area');
+        const scoreText = document.getElementById('score-text');
+        const submitButton = document.getElementById('submit-button');
+        const progressArea = document.getElementById('progress-area');
+        const lastScoreSpan = document.getElementById('last-score');
+        const messageBox = document.getElementById('message-box');
+
+        // 2. NAVEGACIÓN
+
+        function navigateToSelection() {
+            currentQuizId = null;
+            renderSelectionScreen();
+        }
+
+        function startQuiz(quizId) {
+            currentQuizId = quizId;
+            const quiz = quizDatabase[quizId];
+            
+            // 1. Actualizar títulos
+            currentQuizTitle.textContent = quiz.title;
+            
+            // 2. Cambiar vista
+            selectionScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            
+            // 3. Cargar progreso y renderizar el quiz
+            loadProgress(); 
+            renderQuiz();
+        }
+
+        // 3. RENDERIZADO
+
+        function renderSelectionScreen() {
+            quizList.innerHTML = '';
+            
+            Object.keys(quizDatabase).forEach(quizId => {
+                const quiz = quizDatabase[quizId];
+                const lastScore = localStorage.getItem(getStorageKey(quizId));
+                const totalQuestions = quiz.questions.length;
+                
+                let scoreText = '';
+                if (lastScore !== null) {
+                    scoreText = `<span class="text-sm font-normal text-blue-600 ml-2"> (Última Puntuación: ${lastScore}/${totalQuestions})</span>`;
+                }
+
+                const button = document.createElement('button');
+                button.className = 'w-full text-left p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors duration-200 shadow-md';
+                button.innerHTML = `<span class="font-bold text-blue-800 text-lg">${quiz.title}</span>${scoreText}`;
+                button.onclick = () => startQuiz(quizId);
+                quizList.appendChild(button);
+            });
+
+            selectionScreen.classList.remove('hidden');
+            gameScreen.classList.add('hidden');
+            progressArea.classList.add('hidden'); 
+            resultsArea.classList.add('hidden');
+        }
+
+        function renderQuiz() {
+            if (!currentQuizId) return; 
+
+            quizForm.innerHTML = ''; // Limpiar preguntas anteriores
+            const questions = quizDatabase[currentQuizId].questions; // Usar preguntas del quiz seleccionado
+
+            questions.forEach((q, index) => {
+                const questionElement = document.createElement('div');
+                questionElement.className = 'p-5 bg-gray-50 rounded-lg border border-gray-200';
+                questionElement.innerHTML = `
+                    <p class="text-lg font-semibold text-gray-800 mb-3">${index + 1}. ${q.question}</p>
+                    <div class="space-y-2" id="options-${index}">
+                        ${q.options.map((option, optIndex) => `
+                            <label class="option-label flex items-center p-3 border border-gray-300 rounded-md bg-white hover:bg-blue-50 transition-colors duration-200">
+                                <input type="radio" name="question-${index}" value="${option}" class="text-blue-600 focus:ring-blue-500 h-4 w-4 border-gray-300" data-question-index="${index}">
+                                <span class="ml-3 text-gray-700">${option}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+                quizForm.appendChild(questionElement);
+            });
+            
+            // Asegurarse de que el botón de envío sea visible al renderizar
+            submitButton.classList.remove('hidden');
+            // Ocultar resultados si estaban visibles
+            resultsArea.classList.add('hidden');
+        }
+
+        // 4. LÓGICA DE CORRECCIÓN
+        function checkQuiz() {
+            if (!currentQuizId) return;
+            
+            messageBox.classList.add('hidden');
+            let correctAnswers = 0;
+            let allAnswered = true;
+            const questions = quizDatabase[currentQuizId].questions; // Usar preguntas del quiz seleccionado
+            
+            // Recorrer cada pregunta para verificar las respuestas
+            questions.forEach((q, index) => {
+                const selectedOption = document.querySelector(`input[name="question-${index}"]:checked`);
+                const optionsContainer = document.getElementById(`options-${index}`);
+                
+                // Limpiar feedback de la pregunta anterior y deshabilitar
+                optionsContainer.querySelectorAll('.option-label').forEach(label => {
+                    label.classList.remove('border-green-500', 'border-red-500', 'bg-green-100', 'bg-red-100', 'border-2');
+                    label.style.pointerEvents = 'none'; // Deshabilitar clic después de la corrección
+                });
+                
+                // Asegurar que el contenedor de la pregunta no tenga resaltado de error de "no respondida"
+                const questionDiv = document.querySelector(`input[name="question-${index}"]`)?.closest('.p-5');
+                if (questionDiv) questionDiv.classList.remove('border-red-300', 'border-2');
+
+                if (selectedOption) {
+                    // Determinar si la respuesta es correcta
+                    const isCorrect = selectedOption.value === q.answer;
+                    
+                    const selectedLabel = selectedOption.closest('.option-label');
+                    
+                    if (isCorrect) {
+                        correctAnswers++;
+                        selectedLabel.classList.add('border-green-500', 'bg-green-100', 'border-2');
+                    } else {
+                        selectedLabel.classList.add('border-red-500', 'bg-red-100', 'border-2');
+                        
+                        // Resaltar la respuesta correcta
+                        const correctInput = Array.from(optionsContainer.querySelectorAll('input')).find(input => input.value === q.answer);
+                        if (correctInput) {
+                             correctInput.closest('.option-label').classList.add('border-green-500', 'bg-green-200', 'border-2');
+                        }
+                    }
+                    
+                } else {
+                    allAnswered = false;
+                    // Resaltar el contenedor de la pregunta si no ha sido respondida
+                    if (questionDiv) questionDiv.classList.add('border-red-300', 'border-2');
+                }
+            });
+
+            if (!allAnswered) {
+                // Mostrar mensaje de error
+                messageBox.textContent = "Por favor, responde todas las preguntas antes de corregir.";
+                messageBox.classList.remove('hidden');
+                resultsArea.classList.add('hidden');
+                return;
+            }
+
+            // 5. MOSTRAR RESULTADOS Y GUARDAR PROGRESO
+            const totalQuestions = questions.length;
+            const percentage = (correctAnswers / totalQuestions) * 100;
+
+            scoreText.textContent = `Obtuviste ${correctAnswers} de ${totalQuestions} respuestas correctas (${percentage.toFixed(0)}%).`;
+            
+            resultsArea.classList.remove('hidden');
+            submitButton.classList.add('hidden');
+            
+            // Guardar la puntuación
+            saveScore(correctAnswers);
+            
+            // Ocultar el área de progreso una vez que se muestra el resultado actual
+            progressArea.classList.add('hidden'); 
+        }
+
+        // 6. MANEJO DE ALMACENAMIENTO LOCAL
+        
+        function saveScore(score) {
+            if (!currentQuizId) return;
+            localStorage.setItem(getStorageKey(currentQuizId), score);
+        }
+
+        function loadProgress() {
+            if (!currentQuizId) {
+                progressArea.classList.add('hidden');
+                return;
+            }
+
+            const quiz = quizDatabase[currentQuizId];
+            const totalQuestions = quiz.questions.length;
+            const lastScore = localStorage.getItem(getStorageKey(currentQuizId));
+            
+            currentQuizTitleProgress.textContent = quiz.title; // Establecer el título del quiz actual
+
+            if (lastScore !== null) {
+                lastScoreSpan.textContent = `${lastScore} de ${totalQuestions}`;
+                progressArea.classList.remove('hidden');
+            } else {
+                progressArea.classList.add('hidden');
+            }
+        }
+        
+        function resetQuiz() {
+            if (!currentQuizId) return;
+            
+            // Eliminar la puntuación guardada
+            localStorage.removeItem(getStorageKey(currentQuizId));
+            
+            // Volver a renderizar el quiz
+            renderQuiz();
+            
+            // Ocultar el área de resultados
+            resultsArea.classList.add('hidden');
+            messageBox.classList.add('hidden');
+            
+            // Re-habilitar el botón de envío
+            submitButton.classList.remove('hidden');
+            
+            // Asegurar que todas las preguntas estén sin la resaltado de error/corrección
+            document.querySelectorAll('.p-5').forEach(div => {
+                div.classList.remove('border-red-300', 'border-2');
+            });
+            
+            // Volver a cargar el progreso (ahora mostrará que no hay puntuación)
+            loadProgress(); 
+        }
+        
+        // 7. INICIALIZACIÓN
+        document.addEventListener('DOMContentLoaded', () => {
+            // Al iniciar, mostramos la pantalla de selección
+            renderSelectionScreen();
+        });
+
+    </script>
+</body>
+</html>
